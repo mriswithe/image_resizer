@@ -13,6 +13,8 @@ STANDARD_FORMATS = {
     if c[0].startswith("CF_") and isinstance(c[1], int)
 }
 
+# Ref https://docs.microsoft.com/en-us/windows/win32/dataxchg/standard-clipboard-formats
+# for the ranges involved
 GDI_OBJ_FIRST = 0x0300
 GDI_OBJ_LAST = 0x3FF
 PRIV_FIRST = 0x0200
@@ -72,6 +74,7 @@ def current_formats_available():
 
 
 def get_bmp_data(img: Image) -> bytes:
+    """Returning after the first 14 bytes as that is what CF_DIB expects"""
     with BytesIO() as b:
         img.save(b, "BMP")
         b.seek(0)
@@ -79,6 +82,8 @@ def get_bmp_data(img: Image) -> bytes:
 
 
 def get_png_data(img: Image) -> bytes:
+    """Returning the whole content of the file as that is what seems to be the
+    undocumented standard for PNG types on the windows clipboard"""
     with BytesIO() as b:
         img.save(b, "PNG")
         b.seek(0)
