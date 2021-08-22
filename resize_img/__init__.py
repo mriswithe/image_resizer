@@ -4,12 +4,11 @@ from contextlib import contextmanager
 from io import BytesIO
 from pathlib import Path
 
+import win32clipboard as clip
 import win32con
 from PIL import Image, ImageGrab
-import win32clipboard as clip
-from win32con import CF_DIB
-from .clipboard import open_clipboard
 
+from .clipboard import open_clipboard
 from .notify import notify_completed, notify_no_changes, notify_too_many_files
 
 MAX_SIZE = 8 * 2 ** 20
