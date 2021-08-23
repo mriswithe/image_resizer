@@ -4,11 +4,9 @@ from contextlib import contextmanager
 from io import BytesIO
 from pathlib import Path
 
-import win32clipboard as clip
-import win32con
 from PIL import Image, ImageGrab
 
-from .clipboard import open_clipboard
+from .clipboard import write_to_clipboard
 from .notify import notify_completed, notify_no_changes, notify_too_many_files
 
 MAX_SIZE = 8 * 2 ** 20
@@ -43,17 +41,12 @@ def reduced_size(img: Image.Image, percent_reduction: float) -> tuple[int, int]:
     return int(img.width * percent_reduction), int(img.height * percent_reduction)
 
 
-def send_to_clipboard(data: bytes):
-    with open_clipboard():
-        clip.EmptyClipboard()
-        clip.SetClipboardData(win32con.CF_DIB, data)
-
-
-def check_size(img: Image.Image) -> int:
+def check_size(img: Image.Image) -> tuple[int, bytes]:
     with temp_image_file(img) as fp:
         fp.seek(0)
-        size = len(fp.read())
-    return size
+        data = fp.read()
+        size = len(data)
+    return size, data
 
 
 def process_image(image: Image.Image):
@@ -65,23 +58,24 @@ def process_image(image: Image.Image):
     else:
         LOGGER.info(f"Saving with optimize")
         with optimize_only(image) as fp:
-            new_size = len(fp.read())
+            data = fp.read()
+            new_size = len(data)
             LOGGER.info(f"Optimized is {img_size:,} bytes")
             if new_size <= MAX_SIZE:
                 LOGGER.info("Optimized without resize achieved goal size.")
-                send_to_clipboard(fp)
+                write_to_clipboard(image, png_data=data)
                 return
         # We haven't shrunk the image enough yet
         size = float("infinity")
         next_percent = 0.9
         while size > MAX_SIZE:
             new_image = resize_image(image, next_percent)
-            size = check_size(new_image)
+            size, data = check_size(new_image)
             LOGGER.info(f"Image at {size:,} bytes at {next_percent:.2%}")
             if size > MAX_SIZE:
                 next_percent -= 0.1
             else:
-                send_to_clipboard(new_image)
+                write_to_clipboard(new_image, png_data=data)
 
 
 def filter_paths_to_images(file_list: list[str]) -> list[Path]:
@@ -109,7 +103,7 @@ def main():
             LOGGER.info(f"Can't handle multiple image paths on clipboard! -- Exiting")
     else:
         # Handles image data on clipboard
-        LOGGER.info(f"")
+        LOGGER.info(f"Processing image on clipboard")
         process_image(image)
 
 

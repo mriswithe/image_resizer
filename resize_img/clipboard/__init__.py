@@ -1,11 +1,12 @@
 import inspect
 from contextlib import contextmanager
 from io import BytesIO
-from typing import Any, NamedTuple
 
 import pywintypes
 import win32clipboard
 from PIL.Image import Image
+
+from .models import ClipboardFormat, PreferredDropEffect
 
 STANDARD_FORMATS = {
     c[1]: c[0]
@@ -19,20 +20,6 @@ GDI_OBJ_FIRST = 0x0300
 GDI_OBJ_LAST = 0x3FF
 PRIV_FIRST = 0x0200
 PRIV_LAST = 0x02FF
-
-
-class ClipboardFormat(NamedTuple):
-    name: str
-    number: int
-    type: str
-    content: Any
-
-    def __repr__(self):
-        name, number, type = self.name, self.number, self.type
-        return f"ClipboardFormat({name=}, {number=}, {type=})"
-
-    def __str__(self):
-        return self.__repr__()
 
 
 @contextmanager
@@ -68,7 +55,9 @@ def current_formats_available():
                     content = win32clipboard.GetClipboardData(f)
                 except pywintypes.error as e:
                     print(f"Unable to get content for format {name} ({f})")
-                    continue
+                    content = "UNAVAILABLE"
+                if name.lower() == "Preferred DropEffect".lower():
+                    content = PreferredDropEffect.from_bytes(content)
                 formats.append(ClipboardFormat(name, f, format_type, content))
         return formats
 
@@ -90,9 +79,11 @@ def get_png_data(img: Image) -> bytes:
         return b.read()
 
 
-def write_to_clipboard(img: Image):
-    bmp_data = get_bmp_data(img)
-    png_data = get_png_data(img)
+def write_to_clipboard(img: Image, png_data: bytes = None, bmp_data: bytes = None):
+    if not bmp_data:
+        bmp_data = get_bmp_data(img)
+    if not png_data:
+        png_data = get_png_data(img)
     png_format_number = win32clipboard.RegisterClipboardFormat("PNG")
     with open_clipboard():
         win32clipboard.EmptyClipboard()
