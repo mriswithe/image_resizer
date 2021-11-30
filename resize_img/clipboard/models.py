@@ -27,3 +27,6 @@ class PreferredDropEffect(Flag):
     @classmethod
     def from_bytes(cls, val: bytes):
         return cls(struct.unpack("l", val)[0])
+
+    def to_bytes(self) -> bytes:
+        return struct.pack("l", self.value)

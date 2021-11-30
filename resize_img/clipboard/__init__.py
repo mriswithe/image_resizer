@@ -85,7 +85,15 @@ def write_to_clipboard(img: Image, png_data: bytes = None, bmp_data: bytes = Non
     if not png_data:
         png_data = get_png_data(img)
     png_format_number = win32clipboard.RegisterClipboardFormat("PNG")
+    preferred_dropeffect_number = win32clipboard.RegisterClipboardFormat(
+        "Preferred DropEffect"
+    )
+    copy_bytes = PreferredDropEffect.COPY.to_bytes()
+    print(copy_bytes)
     with open_clipboard():
         win32clipboard.EmptyClipboard()
         win32clipboard.SetClipboardData(win32clipboard.CF_DIB, bmp_data)
         win32clipboard.SetClipboardData(png_format_number, png_data)
+        win32clipboard.SetClipboardData(
+            preferred_dropeffect_number, PreferredDropEffect.COPY.to_bytes()
+        )

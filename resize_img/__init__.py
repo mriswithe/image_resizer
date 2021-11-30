@@ -9,7 +9,7 @@ from PIL import Image, ImageGrab
 from .clipboard import write_to_clipboard
 from .notify import notify_completed, notify_no_changes, notify_too_many_files
 
-MAX_SIZE = 8 * 2 ** 20
+MAX_SIZE = int(7.5 * 2 ** 20)
 LOGGER = logging.getLogger(__name__)
 LOGGER.addHandler(logging.NullHandler())
 
@@ -49,12 +49,16 @@ def check_size(img: Image.Image) -> tuple[int, bytes]:
     return size, data
 
 
-def process_image(image: Image.Image):
-    img_size = check_size(image)
+def process_image(image: Image.Image, from_path: bool = False) -> str:
+    img_size, data = check_size(image)
     LOGGER.info(f"Starting image size: {img_size:,} bytes")
     if img_size <= MAX_SIZE:
-        LOGGER.info(f"Image is already under the goal size")
-        return
+        if from_path:
+            LOGGER.info(f"Writing to clipboard as PNG image")
+            write_to_clipboard(image, png_data=data)
+        else:
+            LOGGER.info(f"Image is already under the goal size")
+        return "Image already an acceptable size!"
     else:
         LOGGER.info(f"Saving with optimize")
         with optimize_only(image) as fp:
@@ -64,7 +68,7 @@ def process_image(image: Image.Image):
             if new_size <= MAX_SIZE:
                 LOGGER.info("Optimized without resize achieved goal size.")
                 write_to_clipboard(image, png_data=data)
-                return
+                return "Image saved with compression achieved goal size"
         # We haven't shrunk the image enough yet
         size = float("infinity")
         next_percent = 0.9
@@ -76,6 +80,7 @@ def process_image(image: Image.Image):
                 next_percent -= 0.1
             else:
                 write_to_clipboard(new_image, png_data=data)
+                return f"Image resized by {next_percent:.2%}, new size {size}"
 
 
 def filter_paths_to_images(file_list: list[str]) -> list[Path]:
@@ -90,21 +95,26 @@ def main():
     if not (image := ImageGrab.grabclipboard()):
         # Handles not having image data or file paths on clipboard
         logging.info(f"No image data or file paths on clipboard. Exiting.")
-        return
+        return "No image data or file paths on clipboard."
     elif isinstance(image, list):
         # Handles list of files
         if (list_size := len(file_paths := filter_paths_to_images(image))) == 0:
             LOGGER.info(f"No image files files on clipboard -- Exiting")
-            return
+            return "No image files files on clipboard"
         elif list_size == 1:
             LOGGER.info(f"File path on clipboard being used as source image")
-            process_image(Image.open(file_paths[0]))
+            base_message = (
+                f"Image processed from file path on clipboard, {file_paths[0]}\n"
+            )
+            result = process_image(Image.open(file_paths[0]), from_path=True)
+            return base_message + result
         elif list_size > 1:
             LOGGER.info(f"Can't handle multiple image paths on clipboard! -- Exiting")
     else:
         # Handles image data on clipboard
         LOGGER.info(f"Processing image on clipboard")
-        process_image(image)
+        result = process_image(image)
+        return f"Processed image on clipboard\n{result}"
 
 
 if __name__ == "__main__":

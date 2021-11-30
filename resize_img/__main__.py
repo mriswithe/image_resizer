@@ -1,5 +1,6 @@
 # First things, first. Import the wxPython package.
 import wx
+from . import main
 
 
 class MainFrame(wx.Frame):
@@ -17,12 +18,18 @@ class MainFrame(wx.Frame):
         self.Bind(wx.EVT_BUTTON, self.button_pressed, button)
 
     def button_pressed(self, event):
-        wx.MessageBox("You pressed a button, yay")
+        resp = main()
+        wx.MessageBox(resp)
 
 
 if __name__ == "__main__":
+    import logging
+
+    logging.basicConfig(
+        level=logging.DEBUG, format="%(asctime)s %(name)s [%(levelname)s]:%(message)s"
+    )
     # Start the event loop.
     app = wx.App()
-    frame = MainFrame(None, title="Hello World2")
+    frame = MainFrame(None, title="Image resizer")
     frame.Show()
     app.MainLoop()
